@@ -42,6 +42,11 @@ app/models/weights/
 *.ckpt
 *.safetensors
 
+# --- Audio files (temporary, from uploads) ---
+*.ogg
+*.wav
+*.mp3
+
 # --- Testing & coverage ---
 .pytest_cache/
 .coverage
