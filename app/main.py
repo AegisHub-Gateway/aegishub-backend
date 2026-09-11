@@ -1,88 +1,60 @@
-"""
-AegisHub Gateway — FastAPI Application Entrypoint
-==================================================
-Wires together CORS, health checks, and the versioned API surface for
-all three inference modalities: sign-language recognition, derma-scan
-triage, and lip-reading.
-
-Run locally with:
-    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-"""
-
-import logging
-import time
+"""AegisHub Sign Language API application entrypoint."""
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import settings
-from app.routers import derma, lipread, sign
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-)
-logger = logging.getLogger("aegishub")
-
-_START_TIME = time.time()
+from app.config import settings
+from app.schemas import HealthResponse, SignInput, SignPredictionResponse
+from app.sign_service import get_sign_service
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    description=settings.PROJECT_DESCRIPTION,
-    version=settings.VERSION,
+    title=settings.APP_NAME,
+    version=settings.MODEL_VERSION,
 )
 
-# --- CORS ---
-# Wide open for hackathon/local development so the Next.js frontend can
-# call the API from any origin/port without preflight friction. Note:
-# `allow_credentials` is left False here — with `allow_origins=["*"]`,
-# browsers reject wildcard-origin responses that also carry credentials,
-# and this API is stateless (JSON/file bodies only, no cookies), so no
-# credentialed requests are expected. Tighten `CORS_ORIGINS` to explicit
-# domains before any production deployment.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+@app.get(
+    "/healthz",
+    response_model=HealthResponse,
+    tags=["Health"],
+    summary="Health and model readiness check",
 )
-
-# --- Routers ---
-app.include_router(sign.router, prefix=settings.API_V1_PREFIX)
-app.include_router(derma.router, prefix=settings.API_V1_PREFIX)
-app.include_router(lipread.router, prefix=settings.API_V1_PREFIX)
-
-
-@app.get("/", tags=["Meta"], summary="API root")
-async def root() -> dict:
-    """Basic service metadata and quick links, useful for a smoke test."""
-    return {
-        "project": settings.PROJECT_NAME,
-        "version": settings.VERSION,
-        "docs": "/docs",
-        "health": "/health",
-        "api_prefix": settings.API_V1_PREFIX,
-    }
-
-
-@app.get("/health", tags=["Meta"], summary="Health check")
-async def health_check() -> dict:
-    """Returns system status and process uptime for uptime monitors / load balancers."""
-    uptime_seconds = round(time.time() - _START_TIME, 2)
-    return {
-        "status": "ok",
-        "uptime_seconds": uptime_seconds,
-        "version": settings.VERSION,
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(
-        "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.RELOAD,
+def healthz() -> HealthResponse:
+    """Health check endpoint indicating service health and model status."""
+    return HealthResponse(
+        status="ok",
+        service=settings.APP_NAME,
+        model_version=settings.MODEL_VERSION,
+        model_loaded=settings.MODEL_LOADED,
     )
+
+
+@app.post(
+    "/v1/sign/classify",
+    response_model=SignPredictionResponse,
+    tags=["Sign Classification"],
+    summary="Classify sign language gesture from landmark stream",
+)
+def classify_sign(payload: SignInput) -> SignPredictionResponse:
+    """Accepts a temporal sequence of hand-landmark frames and returns predicted sign."""
+    service = get_sign_service()
+    result = service.predict_sign(payload)
+    return SignPredictionResponse(**result)
+
+
+# --- Aliases for convenience ---
+@app.post("/api/v1/sign/classify", response_model=SignPredictionResponse, include_in_schema=False)
+def classify_sign_alias(payload: SignInput) -> SignPredictionResponse:
+    """Alias for /v1/sign/classify."""
+    return classify_sign(payload)
+
+
+@app.get("/health", response_model=HealthResponse, tags=["Health"], include_in_schema=False)
+def health() -> HealthResponse:
+    """Alias for /healthz."""
+    return healthz()
+
+
+@app.get("/", response_model=HealthResponse, tags=["Meta"], include_in_schema=False)
+def root() -> HealthResponse:
+    """Root endpoint alias returning service health metadata."""
+    return healthz()

@@ -1,23 +1,8 @@
-# --- Web framework & server ---
-fastapi==0.141.1
-uvicorn[standard]==0.38.0
-
-# --- Validation & settings (Pydantic v2) ---
-pydantic==2.13.5
-pydantic-settings==2.15.0
-
-# --- Multipart / file uploads (required for UploadFile + Form parsing) ---
-python-multipart==0.0.32
-
-# --- Numerical & image processing ---
-numpy==2.5.3
-opencv-python-headless==5.0.0.93
-
-# --- ML inference (Scroll's models) ---
-# CPU-only wheel keeps setup lightweight for the hackathon; swap for a
-# CUDA-enabled build (see https://pytorch.org/get-started/locally/) if a
-# GPU is available.
-torch==2.9.0
-
-# --- Environment file support (used by pydantic-settings' env_file=".env") ---
-python-dotenv==1.1.1
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+numpy
+python-dotenv
+pytest
+httpx
