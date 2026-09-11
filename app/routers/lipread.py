@@ -79,7 +79,8 @@ async def transcribe_lipread(
 
     if not audio_bytes:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Uploaded audio file is empty."
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Uploaded audio file is empty.",
         )
 
     if len(audio_bytes) > MAX_UPLOAD_BYTES:

@@ -23,9 +23,17 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 TARGET_SIZE = (224, 224)  # MobileNet input resolution
 
 URGENCY_SUMMARIES = {
-    "low": "No urgent action needed. Consider monitoring for changes over the coming weeks.",
-    "medium": "Recommend scheduling a dermatologist consultation within the next 1-2 weeks.",
-    "high": "Please seek in-person dermatological evaluation as soon as possible.",
+    "low": (
+        "No urgent action needed. Consider monitoring for changes "
+        "over the coming weeks."
+    ),
+    "medium": (
+        "Recommend scheduling a dermatologist consultation within "
+        "the next 1-2 weeks."
+    ),
+    "high": (
+        "Please seek in-person dermatological evaluation as soon as possible."
+    ),
 }
 
 
@@ -56,7 +64,8 @@ async def scan_derma_image(
 
     if not raw_bytes:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Uploaded file is empty."
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Uploaded file is empty.",
         )
 
     if len(raw_bytes) > MAX_UPLOAD_BYTES:
