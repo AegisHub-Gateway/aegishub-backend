@@ -65,3 +65,9 @@ class LipReadResponse(BaseModel):
     is_muffled: bool = Field(
         ..., description="True when audio quality is low and lip-reading was the primary signal."
     )
+    processed_frames_count: int = Field(
+        default=0, description="Number of lip-mesh frames processed."
+    )
+    audio_mfcc_shape: List[int] = Field(
+        default_factory=list, description="Shape of MFCC feature matrix (n_mfcc, time_steps)."
+    )

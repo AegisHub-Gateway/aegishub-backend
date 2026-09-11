@@ -8,12 +8,15 @@ dummy fallback — see `app/models/model_loader.py`).
 
 import json
 import logging
+import os
+import tempfile
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import ValidationError
 
 from app.models.model_loader import get_model_registry
 from app.schemas.lipread import LipMeshPayload, LipReadResponse
+from app.services.preprocessing import process_audio_file, process_lip_landmarks, process_video_frames
 
 logger = logging.getLogger("aegishub.routers.lipread")
 
@@ -78,20 +81,67 @@ async def transcribe_lipread(
             detail=f"Uploaded audio exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit.",
         )
 
+    # 1. Parse and validate JSON lip_mesh
+    try:
+        mesh_data = json.loads(lip_mesh)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"`lip_mesh` is not valid JSON: {exc.msg}",
+        ) from exc
+
+    # Validate against schema
     mesh_payload = _parse_lip_mesh(lip_mesh)
 
+    # 2. Preprocess lip landmark sequence
+    try:
+        landmark_array = process_lip_landmarks(mesh_data)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to process lip landmarks: {str(exc)}",
+        ) from exc
+
+    # 3. Save audio temporarily & extract MFCC audio features
+    tmp_path = None
+    mfcc_features = None
+    try:
+        suffix = os.path.splitext(audio.filename or "audio")[1] or ".ogg"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(audio_bytes)
+            tmp_path = tmp.name
+
+        # Process audio file into MFCC array
+        mfcc_features = process_audio_file(tmp_path, sr=16000, n_mfcc=13)
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to process audio file: {str(exc)}",
+        ) from exc
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    # 4. Run inference and return response
     registry = get_model_registry()
     result = registry.dummy_predict_lipread(
         transcript_seed=audio_bytes,
         lip_mesh_frame_count=len(mesh_payload.frames),
     )
 
+    # Add processed frames count and audio features shape to response
+    result["processed_frames_count"] = len(landmark_array)
+    result["audio_mfcc_shape"] = list(mfcc_features.shape) if mfcc_features is not None else []
+
     logger.info(
-        "Lip-read transcription | filename=%s | frames=%d | confidence=%.4f | muffled=%s",
+        "Lip-read transcription | filename=%s | frames=%d | confidence=%.4f | muffled=%s | processed_frames=%d | mfcc_shape=%s",
         audio.filename,
         len(mesh_payload.frames),
         result["confidence"],
         result["is_muffled"],
+        len(landmark_array),
+        result["audio_mfcc_shape"],
     )
 
     return LipReadResponse(**result)

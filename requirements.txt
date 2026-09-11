@@ -21,3 +21,6 @@ torch==2.9.0
 
 # --- Environment file support (used by pydantic-settings' env_file=".env") ---
 python-dotenv==1.1.1
+
+# --- Audio processing ---
+librosa==0.10.2
