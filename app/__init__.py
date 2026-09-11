@@ -1,1 +1,1 @@
-"""AegisHub Gateway — multi-modal health accessibility backend."""
+"""AegisHub Sign Language API package."""

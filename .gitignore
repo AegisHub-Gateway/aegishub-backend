@@ -1,9 +1,69 @@
-# --- Python ---
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python cache files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Pytest & testing caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Type checkers / linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# Model files & weights
+*.pkl
+*.pickle
+*.joblib
+*.onnx
+*.pt
+*.pth
+*.h5
+*.keras
+*.ckpt
+*.safetensors
+
+# Model directories
+models/
+app/models/weights/*
+!app/models/weights/.gitkeep
+
+# Generated datasets
+datasets/
+data/
+*.csv
+*.parquet
+*.jsonl
+
+# Audio files (temporary, from uploads)
+*.ogg
+*.wav
+*.mp3
+
+# Build & packaging
 build/
 develop-eggs/
 dist/
@@ -20,61 +80,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# --- Virtual environments ---
-.venv/
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-
-# --- Environment & secrets ---
-.env
-.env.*
-!.env.example
-
-# --- PyTorch / ML model weights & checkpoints ---
-app/models/weights/
-*.pt
-*.pth
-*.onnx
-*.h5
-*.ckpt
-*.safetensors
-
-# --- Audio files (temporary, from uploads) ---
-*.ogg
-*.wav
-*.mp3
-
-# --- Testing & coverage ---
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.nox/
-coverage.xml
-*.cover
-
-# --- Type checkers / linters ---
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.ruff_cache/
-
-# --- IDE / editor ---
+# IDE & OS
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# --- OS ---
 .DS_Store
 Thumbs.db
-
-# --- Logs ---
-*.log
-
-# --- Jupyter ---
-.ipynb_checkpoints/
