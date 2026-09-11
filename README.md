@@ -1,179 +1,152 @@
-# AegisHub Gateway — Backend
+# AegisHub Sign Language API
 
-Multi-modal health accessibility gateway for **GatewayHacks 2026**. The backend follows a **Split-Processing Architecture**: the Next.js frontend does lightweight extraction in-browser (MediaPipe hand/face landmarks, raw media capture) and ships JSON/files to this FastAPI service, which owns all AI inference.
+AegisHub Sign Language recognition service built with FastAPI.
 
-## Modalities
+## Phase 4: Model Adapter & Mock Inference
 
-| Modality | Owner | Endpoint | Input | Output |
-|---|---|---|---|---|
-| Sign Language | Timothy | `POST /api/v1/sign/predict` | JSON — 30 frames × 21 3D hand landmarks | `detected_sign`, `confidence`, `is_emergency` |
-| Derma-Scan | Neche | `POST /api/v1/derma/scan` | multipart image upload | `condition`, `urgency`, `confidence`, `summary` |
-| Lip-Reading | Neche | `POST /api/v1/lipread/transcribe` | multipart audio + `lip_mesh` JSON string | `transcript`, `confidence`, `is_muffled` |
+This phase implements the Model Adapter layer decoupling the FastAPI service and business logic from Scroll's future LSTM/GRU model. It provides a configurable mock model for development and integration testing.
 
-All three currently run on deterministic **dummy predictors** (see `app/models/model_loader.py`) so the full pipeline works end-to-end without GPU hardware or trained weights. Dropping a `.pt` checkpoint at the configured path (see `app/core/config.py`) transparently switches a model over to real inference — no router or schema changes required.
+### Project Structure
+
+```text
+app/
+├── __init__.py
+├── main.py
+├── config.py
+├── schemas.py
+├── errors.py
+├── preprocessing.py
+├── model_adapter.py
+└── sign_service.py
+
+tests/
+├── test_health.py
+├── test_preprocessing.py
+└── test_model_adapter.py
+
+requirements.txt
+README.md
+.gitignore
+.env
+```
+
+### Setup & Installation
+
+1. **Activate Virtual Environment:**
+   ```bash
+   source venv/bin/activate
+   ```
+
+2. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run the Server:**
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+4. **Run the Tests:**
+   ```bash
+   pytest -v --tb=short
+   ```
+
+5. **Run Linting (CI Check):**
+   ```bash
+   ruff check .
+   ```
+
+### API Endpoints
+
+* **Health Check:** `GET /healthz`
+  ```bash
+  curl http://localhost:8000/healthz
+  ```
+  Response:
+  ```json
+  {"status": "ok", "service": "aegishub-sign-api", "model_version": "not-loaded", "model_loaded": false}
+  ```
+
+* **Sign Classification:** `POST /v1/sign/classify`
+  ```bash
+  curl -X POST http://localhost:8000/v1/sign/classify \
+    -H "Content-Type: application/json" \
+    -d '{
+      "frames": [
+        {
+          "left_hand": [{"x": 0.12, "y": 0.35, "z": -0.02}],
+          "right_hand": [{"x": 0.18, "y": 0.31, "z": -0.01}]
+        }
+      ]
+    }'
+  ```
+  Response:
+  ```json
+  {
+    "gloss": "none",
+    "confidence": 0.0,
+    "alternatives": [],
+    "below_threshold": true
+  }
+  ```
 
 ---
 
-## 1. Setup
+## Model Adapter Layer (`app/model_adapter.py`)
 
-```bash
-# From the aegishub-backend/ directory
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+The adapter abstracts inference models behind a unified, decoupled interface:
 
-pip install --upgrade pip
-pip install -r requirements.txt
-```
+* `load(model_path: str | None = None) -> bool`: Loads the model backend (mock or real weights).
+* `is_loaded() -> bool`: Returns `True` if the model backend is ready for inference.
+* `predict(input_data: Any, **kwargs: Any) -> dict`: Runs inference and evaluates confidence against the configured threshold.
+* `get_model_version() -> str`: Returns the active model version identifier.
 
-> **Torch install note:** `requirements.txt` pins the CPU-only PyTorch wheel to keep hackathon setup fast. If you have a CUDA GPU, install the matching build from [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/) instead before running `pip install -r requirements.txt`.
+### Development Mock Model
 
-## 2. Run the server
-
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Or via the entrypoint's `__main__` block:
-
-```bash
-python -m app.main
-```
-
-- Interactive docs (Swagger UI): **http://localhost:8000/docs**
-- ReDoc: **http://localhost:8000/redoc**
-- Health check: **http://localhost:8000/health**
-
-## 3. Environment configuration (optional)
-
-All settings in `app/core/config.py` can be overridden via a `.env` file in `aegishub-backend/`:
-
-```dotenv
-PORT=8000
-CORS_ORIGINS=["http://localhost:3000"]
-SIGN_MODEL_PATH=app/models/weights/sign_lstm.pt
-DERMA_MODEL_PATH=app/models/weights/derma_mobilenet.pt
-```
-
----
-
-## 4. Testing the endpoints
-
-### Health check
-
-```bash
-curl http://localhost:8000/health
-```
-
-```json
-{ "status": "ok", "uptime_seconds": 12.34, "version": "1.0.0" }
-```
-
-### Sign Language — `POST /api/v1/sign/predict`
-
-This endpoint strictly requires **exactly 30 frames**, each with **exactly 21 landmarks**, each coordinate normalized to `[0.0, 1.0]`. Any deviation (missing frames, wrong landmark count, out-of-range coordinates) returns **HTTP 422**.
-
-Generate a valid sample payload with Python:
-
-```bash
-python3 - <<'EOF' > sign_payload.json
-import json, random
-
-frames = [
-    {"landmarks": [
-        {"x": round(random.random(), 4), "y": round(random.random(), 4), "z": round(random.random(), 4)}
-        for _ in range(21)
-    ]}
-    for _ in range(30)
-]
-
-print(json.dumps({"session_id": "demo-session-001", "frames": frames}))
-EOF
-```
-
-Then call the endpoint:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/sign/predict \
-  -H "Content-Type: application/json" \
-  -d @sign_payload.json
-```
-
-```json
-{ "detected_sign": "HELP", "confidence": 0.8734, "is_emergency": true }
-```
-
-**Trigger a validation error (422)** — e.g. too few frames:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/sign/predict \
-  -H "Content-Type: application/json" \
-  -d '{"frames": [{"landmarks": []}]}'
-```
-
-### Derma-Scan — `POST /api/v1/derma/scan`
-
-```bash
-curl -X POST http://localhost:8000/api/v1/derma/scan \
-  -F "image=@/path/to/skin_photo.jpg;type=image/jpeg"
-```
+When `MOCK_MODEL_ENABLED=true`, `SignModelAdapter` uses `MockSignModel`. By default, it returns:
 
 ```json
 {
-  "condition": "Atypical Mole",
-  "urgency": "medium",
-  "confidence": 0.8123,
-  "summary": "Recommend scheduling a dermatologist consultation within the next 1-2 weeks."
+  "gloss": "none",
+  "confidence": 0.0,
+  "alternatives": [],
+  "below_threshold": true
 }
 ```
 
-### Lip-Reading — `POST /api/v1/lipread/transcribe`
+> **Note:** This mock model is exclusively for local service development and contract validation. It does not reflect real AI model predictions or accuracy.
 
-`lip_mesh` is a JSON-encoded string form field (not a file) alongside the audio upload:
+### Configuration (`app/config.py`)
 
-```bash
-curl -X POST http://localhost:8000/api/v1/lipread/transcribe \
-  -F "audio=@/path/to/clip.wav;type=audio/wav" \
-  -F 'lip_mesh={"frames":[{"points":[{"x":0.1,"y":0.2},{"x":0.15,"y":0.22},{"x":0.2,"y":0.2},{"x":0.15,"y":0.18}]}]}'
-```
+All model parameters are driven by environment variables or `.env`:
 
-```json
-{ "transcript": "I need help please", "confidence": 0.812, "is_muffled": false }
-```
+| Setting | Default | Description |
+|---|---|---|
+| `MODEL_PATH` | `None` | Path to production weights (e.g. `models/sign_lstm.pt`). |
+| `MODEL_VERSION` | `not-loaded` | Model version tag reported by health and adapter. |
+| `MODEL_LOADED` | `false` | Whether the model initializes as loaded. |
+| `CONFIDENCE_THRESHOLD` | `0.6` | Confidence cutoff below which `below_threshold` is set to `true`. |
+| `CLASS_LABELS` | `["none"]` | Configurable list of sign classification labels. |
+| `MOCK_MODEL_ENABLED` | `true` | Enables safe mock inference during development. |
 
-### Testing via Postman
+### Placeholder for Scroll's Real Model
 
-1. **Sign Language**: `POST` request, Body → `raw` → `JSON`, paste `sign_payload.json` contents.
-2. **Derma-Scan**: `POST` request, Body → `form-data`, key `image` set to type **File**, select an image.
-3. **Lip-Reading**: `POST` request, Body → `form-data`, key `audio` set to type **File**, plus a second key `lip_mesh` set to type **Text** with a JSON string value.
+The adapter includes `ScrollModelPlaceholder`, safely handling non-existent weight files without server crashes and without inventing:
+* Model tensor input shapes
+* Class orders or label indices
+* Model file formats or names
+* Preprocessing hyperparameters
+* PyTorch versions
 
 ---
 
-## 5. Project structure
+## Landmark Preprocessing Pipeline
 
-```text
-aegishub-backend/
-├── app/
-│   ├── main.py              # FastAPI app, CORS, /health, router mounting
-│   ├── core/config.py       # Pydantic BaseSettings (env-driven config)
-│   ├── schemas/             # Pydantic v2 request/response contracts
-│   │   ├── sign.py
-│   │   ├── derma.py
-│   │   └── lipread.py
-│   ├── routers/             # Endpoint logic per modality
-│   │   ├── sign.py
-│   │   ├── derma.py
-│   │   └── lipread.py
-│   └── models/
-│       └── model_loader.py  # ModelRegistry — lazy loading + dummy fallbacks
-├── requirements.txt
-└── .gitignore
-```
+The preprocessing layer ([`app/preprocessing.py`](file:///home/soterika/Documents/aegishub-backend/app/preprocessing.py)) converts incoming landmark sequences into structured numerical arrays:
 
-## 6. Next steps for Scroll (AI/ML)
-
-Drop trained checkpoints into `app/models/weights/`:
-
-- `sign_lstm.pt` — LSTM sign-classification model
-- `derma_mobilenet.pt` — MobileNet derma-scan classification model
-
-`ModelRegistry` (`app/models/model_loader.py`) will automatically detect and load them on next process start, replacing the dummy predictors with real inference — no other code changes needed.
+* **Wrist Centering:** Shifts hand coordinates so landmark index 0 is at approximately `[0.0, 0.0, 0.0]`.
+* **Scale Normalization:** Normalizes coordinates by the maximum Euclidean distance from the wrist to eliminate camera distance bias.
+* **Safe Fallback:** Guarantees zero division cannot occur for zero-sized or missing hands.
+* **Missing Hands:** Handled via `MissingHandPolicy.ZEROS` (cleanly zero-filled matrix `(21, 3)`).
+* **Shapes Supported:** Configurable between 4D `[30, 2, 21, 3]` and 2D flattened `[30, 126]`.
