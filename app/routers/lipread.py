@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from app.models.model_loader import get_model_registry
 from app.schemas.lipread import LipMeshPayload, LipReadResponse
-from app.services.preprocessing import process_audio_file, process_lip_landmarks, process_video_frames
+from app.services.preprocessing import process_audio_file, process_lip_landmarks
 
 logger = logging.getLogger("aegishub.routers.lipread")
 

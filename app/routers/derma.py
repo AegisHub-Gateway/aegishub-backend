@@ -8,8 +8,6 @@ and routes it through Scroll's MobileNet derma-classification model
 
 import logging
 
-import cv2
-import numpy as np
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.models.model_loader import get_model_registry
