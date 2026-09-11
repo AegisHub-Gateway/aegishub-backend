@@ -76,3 +76,41 @@ def process_audio_file(file_path: str, sr: int = 16000, n_mfcc: int = 13) -> np.
         return mfccs
     except Exception as e:
         raise ValueError(f"Failed to process audio file: {str(e)}")
+
+
+def process_derma_image(image_bytes: bytes, target_size: tuple = (224, 224)) -> np.ndarray:
+    """
+    Decodes image bytes, converts BGR to RGB, resizes to target dimensions,
+    and normalizes pixel values to [0.0, 1.0].
+
+    Args:
+        image_bytes: Raw image bytes from upload
+        target_size: Target dimensions (width, height) for resizing
+
+    Returns:
+        np.ndarray: Normalized RGB image of shape (height, width, 3) with dtype float32
+
+    Raises:
+        ValueError: If image cannot be decoded
+    """
+    try:
+        # Decode raw bytes into NumPy BGR image via OpenCV
+        np_buffer = np.frombuffer(image_bytes, dtype=np.uint8)
+        bgr_image = cv2.imdecode(np_buffer, cv2.IMREAD_COLOR)
+
+        if bgr_image is None:
+            raise ValueError("Image buffer could not be decoded as a valid image")
+
+        # Convert BGR to RGB
+        rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+
+        # Resize to target dimensions
+        resized_image = cv2.resize(rgb_image, target_size, interpolation=cv2.INTER_AREA)
+
+        # Normalize pixel values to [0.0, 1.0]
+        normalized_image = resized_image.astype(np.float32) / 255.0
+
+        return normalized_image
+
+    except Exception as e:
+        raise ValueError(f"Failed to process image: {str(e)}")

@@ -14,6 +14,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.models.model_loader import get_model_registry
 from app.schemas.derma import DermaScanResponse
+from app.services.preprocessing import process_derma_image
 
 logger = logging.getLogger("aegishub.routers.derma")
 
@@ -28,32 +29,6 @@ URGENCY_SUMMARIES = {
     "medium": "Recommend scheduling a dermatologist consultation within the next 1-2 weeks.",
     "high": "Please seek in-person dermatological evaluation as soon as possible.",
 }
-
-
-def preprocess_image(raw_bytes: bytes) -> np.ndarray:
-    """
-    Decode raw uploaded image bytes into a normalized, model-ready tensor.
-
-    Pipeline:
-      1. Decode raw bytes into a NumPy BGR image via OpenCV.
-      2. Resize to the MobileNet input resolution (224x224).
-      3. Normalize pixel intensities from [0, 255] to [0.0, 1.0].
-
-    Raises:
-        HTTPException(422): if the bytes cannot be decoded as an image.
-    """
-    np_buffer = np.frombuffer(raw_bytes, dtype=np.uint8)
-    bgr_image = cv2.imdecode(np_buffer, cv2.IMREAD_COLOR)
-
-    if bgr_image is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Uploaded file could not be decoded as a valid image.",
-        )
-
-    resized = cv2.resize(bgr_image, TARGET_SIZE, interpolation=cv2.INTER_AREA)
-    normalized = resized.astype(np.float32) / 255.0
-    return normalized
 
 
 @router.post(
@@ -89,18 +64,29 @@ async def scan_derma_image(
             detail=f"Uploaded file exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit.",
         )
 
-    image_tensor = preprocess_image(raw_bytes)
+    # Process image using service function
+    try:
+        image_tensor = process_derma_image(raw_bytes, target_size=TARGET_SIZE)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
     registry = get_model_registry()
     result = registry.predict_derma(image_tensor)
     urgency = result["urgency"]
 
+    # Add processed image shape to response
+    result["processed_image_shape"] = list(image_tensor.shape)
+
     logger.info(
-        "Derma scan | filename=%s | condition=%s | urgency=%s | confidence=%.4f",
+        "Derma scan | filename=%s | condition=%s | urgency=%s | confidence=%.4f | image_shape=%s",
         image.filename,
         result["condition"],
         urgency,
         result["confidence"],
+        result["processed_image_shape"],
     )
 
     return DermaScanResponse(
@@ -110,4 +96,5 @@ async def scan_derma_image(
         summary=URGENCY_SUMMARIES.get(
             urgency, "Please consult a medical professional for further evaluation."
         ),
+        processed_image_shape=result["processed_image_shape"],
     )
