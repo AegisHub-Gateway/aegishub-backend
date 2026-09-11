@@ -28,7 +28,12 @@ class LipMeshPoint(BaseModel):
 
     x: float = Field(..., ge=COORD_MIN, le=COORD_MAX)
     y: float = Field(..., ge=COORD_MIN, le=COORD_MAX)
-    z: float = Field(default=0.0, ge=COORD_MIN, le=COORD_MAX, description="Optional relative depth.")
+    z: float = Field(
+        default=0.0,
+        ge=COORD_MIN,
+        le=COORD_MAX,
+        description="Optional relative depth.",
+    )
 
 
 class LipMeshFrame(BaseModel):
@@ -40,7 +45,9 @@ class LipMeshFrame(BaseModel):
     @classmethod
     def validate_points_not_empty(cls, value: List[LipMeshPoint]) -> List[LipMeshPoint]:
         if len(value) < MIN_LIP_POINTS:
-            raise ValueError(f"Each lip-mesh frame requires at least {MIN_LIP_POINTS} points.")
+            raise ValueError(
+                f"Each lip-mesh frame requires at least {MIN_LIP_POINTS} points."
+            )
         return value
 
 
@@ -63,11 +70,15 @@ class LipReadResponse(BaseModel):
     transcript: str = Field(..., description="Predicted spoken transcript.")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Model confidence score.")
     is_muffled: bool = Field(
-        ..., description="True when audio quality is low and lip-reading was the primary signal."
+        ...,
+        description=(
+            "True when audio quality is low and lip-reading was the primary signal."
+        ),
     )
     processed_frames_count: int = Field(
         default=0, description="Number of lip-mesh frames processed."
     )
     audio_mfcc_shape: List[int] = Field(
-        default_factory=list, description="Shape of MFCC feature matrix (n_mfcc, time_steps)."
+        default_factory=list,
+        description="Shape of MFCC feature matrix (n_mfcc, time_steps).",
     )

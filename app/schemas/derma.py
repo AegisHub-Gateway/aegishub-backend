@@ -19,10 +19,17 @@ UrgencyLevel = Literal["low", "medium", "high"]
 class DermaScanResponse(BaseModel):
     """Structured triage result returned after MobileNet classification."""
 
-    condition: str = Field(..., description="Predicted dermatological condition label.")
+    condition: str = Field(
+        ..., description="Predicted dermatological condition label."
+    )
     urgency: UrgencyLevel = Field(..., description="Triage urgency bucket.")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Model confidence score.")
-    summary: str = Field(..., description="Human-readable, patient-facing summary of the result.")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Model confidence score."
+    )
+    summary: str = Field(
+        ..., description="Human-readable, patient-facing summary of the result."
+    )
     processed_image_shape: List[int] = Field(
-        default_factory=list, description="Shape of processed image tensor (height, width, channels)."
+        default_factory=list,
+        description="Shape of processed image tensor (height, width, channels).",
     )

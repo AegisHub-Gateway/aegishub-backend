@@ -46,7 +46,10 @@ async def scan_derma_image(
     if image.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unsupported content type '{image.content_type}'. Allowed: {sorted(ALLOWED_CONTENT_TYPES)}.",
+            detail=(
+                f"Unsupported content type '{image.content_type}'. "
+                f"Allowed: {sorted(ALLOWED_CONTENT_TYPES)}."
+            ),
         )
 
     raw_bytes = await image.read()
@@ -59,7 +62,10 @@ async def scan_derma_image(
     if len(raw_bytes) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Uploaded file exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit.",
+            detail=(
+                f"Uploaded file exceeds the "
+                f"{MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit."
+            ),
         )
 
     # Process image using service function
@@ -79,7 +85,10 @@ async def scan_derma_image(
     result["processed_image_shape"] = list(image_tensor.shape)
 
     logger.info(
-        "Derma scan | filename=%s | condition=%s | urgency=%s | confidence=%.4f | image_shape=%s",
+        (
+            "Derma scan | filename=%s | condition=%s | "
+            "urgency=%s | confidence=%.4f | image_shape=%s"
+        ),
         image.filename,
         result["condition"],
         urgency,

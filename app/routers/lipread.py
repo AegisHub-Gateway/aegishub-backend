@@ -54,8 +54,12 @@ def _parse_lip_mesh(lip_mesh: str) -> LipMeshPayload:
     summary="Generate synchronized subtitles from audio + lip-mesh coordinates",
 )
 async def transcribe_lipread(
-    audio: UploadFile = File(..., description="Audio clip synchronized with the lip-mesh frames."),
-    lip_mesh: str = Form(..., description="JSON-encoded array of lip-mesh coordinate frames."),
+    audio: UploadFile = File(
+        ..., description="Audio clip synchronized with the lip-mesh frames."
+    ),
+    lip_mesh: str = Form(
+        ..., description="JSON-encoded array of lip-mesh coordinate frames."
+    ),
 ) -> LipReadResponse:
     """
     Accepts a multipart request containing an audio clip and a JSON-encoded
@@ -65,7 +69,10 @@ async def transcribe_lipread(
     if audio.content_type not in ALLOWED_AUDIO_TYPES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unsupported audio content type '{audio.content_type}'. Allowed: {sorted(ALLOWED_AUDIO_TYPES)}.",
+            detail=(
+                f"Unsupported audio content type '{audio.content_type}'. "
+                f"Allowed: {sorted(ALLOWED_AUDIO_TYPES)}."
+            ),
         )
 
     audio_bytes = await audio.read()
@@ -78,7 +85,10 @@ async def transcribe_lipread(
     if len(audio_bytes) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Uploaded audio exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit.",
+            detail=(
+                f"Uploaded audio exceeds the "
+                f"{MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit."
+            ),
         )
 
     # 1. Parse and validate JSON lip_mesh
@@ -132,10 +142,15 @@ async def transcribe_lipread(
 
     # Add processed frames count and audio features shape to response
     result["processed_frames_count"] = len(landmark_array)
-    result["audio_mfcc_shape"] = list(mfcc_features.shape) if mfcc_features is not None else []
+    result["audio_mfcc_shape"] = (
+        list(mfcc_features.shape) if mfcc_features is not None else []
+    )
 
     logger.info(
-        "Lip-read transcription | filename=%s | frames=%d | confidence=%.4f | muffled=%s | processed_frames=%d | mfcc_shape=%s",
+        (
+            "Lip-read transcription | filename=%s | frames=%d | "
+            "confidence=%.4f | muffled=%s | processed_frames=%d | mfcc_shape=%s"
+        ),
         audio.filename,
         len(mesh_payload.frames),
         result["confidence"],
