@@ -2,6 +2,9 @@
 venv/
 .venv/
 env/
+ENV/
+env.bak/
+venv.bak/
 
 # Environment files
 .env
@@ -20,6 +23,16 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Type checkers / linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
 
 # Model files & weights
 *.pkl
@@ -44,6 +57,11 @@ data/
 *.csv
 *.parquet
 *.jsonl
+
+# Audio files (temporary, from uploads)
+*.ogg
+*.wav
+*.mp3
 
 # Build & packaging
 build/
