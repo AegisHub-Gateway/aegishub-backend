@@ -2,7 +2,7 @@
 
 import json
 from functools import lru_cache
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     MODEL_LOADED: bool = Field(default=False, description="Flag indicating if model is ready")
 
     # Phase 4 Model Adapter Settings
-    MODEL_PATH: str | None = Field(
+    MODEL_PATH: Optional[str] = Field(
         default=None,
         description="Path to production weights checkpoint file (unloaded in mock mode)",
     )

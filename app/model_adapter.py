@@ -8,7 +8,7 @@ development testing.
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 from app.config import Settings, get_settings
 from app.schemas import SignPredictionResponse
@@ -24,7 +24,7 @@ class BaseModelInterface(ABC):
     """Abstract interface for sign classification models."""
 
     @abstractmethod
-    def load(self, model_path: str | None = None) -> bool:
+    def load(self, model_path: Optional[str] = None) -> bool:
         """Load model weights or resources."""
 
     @abstractmethod
@@ -51,14 +51,14 @@ class MockSignModel(BaseModelInterface):
         self,
         version: str = "mock-v1",
         confidence_threshold: float = 0.6,
-        class_labels: list[str] | None = None,
+        class_labels: Optional[list[str]] = None,
     ) -> None:
         self.version = version
         self.confidence_threshold = confidence_threshold
         self.class_labels = class_labels or ["none"]
         self._loaded: bool = False
 
-    def load(self, model_path: str | None = None) -> bool:
+    def load(self, model_path: Optional[str] = None) -> bool:
         """Simulate model loading for local development."""
         self._loaded = True
         logger.info("MockSignModel loaded successfully in development mock mode.")
@@ -77,7 +77,7 @@ class MockSignModel(BaseModelInterface):
         input_data: Any = None,
         simulated_gloss: str = "none",
         simulated_confidence: float = 0.0,
-        simulated_alternatives: list[str] | None = None,
+        simulated_alternatives: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Return mock inference result.
 
@@ -107,10 +107,10 @@ class ScrollModelPlaceholder(BaseModelInterface):
 
     def __init__(
         self,
-        model_path: str | None = None,
+        model_path: Optional[str] = None,
         version: str = "unloaded",
         confidence_threshold: float = 0.6,
-        class_labels: list[str] | None = None,
+        class_labels: Optional[list[str]] = None,
     ) -> None:
         self.model_path = model_path
         self.version = version
@@ -119,7 +119,7 @@ class ScrollModelPlaceholder(BaseModelInterface):
         self._loaded: bool = False
         self._model_instance: Any = None
 
-    def load(self, model_path: str | None = None) -> bool:
+    def load(self, model_path: Optional[str] = None) -> bool:
         """Safely attempt to locate and load the model weights checkpoint."""
         target_path = model_path or self.model_path
         if not target_path or not os.path.exists(target_path):
@@ -156,7 +156,7 @@ class ScrollModelPlaceholder(BaseModelInterface):
 class SignModelAdapter:
     """Unified adapter decoupling API services from underlying model implementations."""
 
-    def __init__(self, config: Settings | None = None) -> None:
+    def __init__(self, config: Optional[Settings] = None) -> None:
         self.config: Settings = config or get_settings()
         self._backend: BaseModelInterface
 
@@ -178,7 +178,7 @@ class SignModelAdapter:
         if self.config.MODEL_LOADED:
             self.load()
 
-    def load(self, model_path: str | None = None) -> bool:
+    def load(self, model_path: Optional[str] = None) -> bool:
         """Load the configured model backend."""
         path = model_path or self.config.MODEL_PATH
         return self._backend.load(path)
@@ -207,7 +207,7 @@ class SignModelAdapter:
         return validated.model_dump()
 
 
-_default_adapter: SignModelAdapter | None = None
+_default_adapter: Optional[SignModelAdapter] = None
 
 
 def get_model_adapter() -> SignModelAdapter:

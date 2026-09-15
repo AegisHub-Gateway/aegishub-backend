@@ -4,7 +4,7 @@ Orchestrates preprocessing and model prediction workflows while keeping
 the API decoupled from model internal details.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from app.model_adapter import SignModelAdapter, get_model_adapter
 from app.preprocessing import convert_to_model_input, validate_sign_input
@@ -14,7 +14,7 @@ from app.schemas import SignInput
 class SignService:
     """Service managing sign language preprocessing and prediction pipelines."""
 
-    def __init__(self, adapter: SignModelAdapter | None = None) -> None:
+    def __init__(self, adapter: Optional[SignModelAdapter] = None) -> None:
         self.adapter = adapter or get_model_adapter()
 
     def handle_sign_input(self, sign_input: SignInput) -> SignInput:
@@ -34,7 +34,7 @@ class SignService:
         return self.adapter.predict(model_input, **kwargs)
 
 
-_default_service: SignService | None = None
+_default_service: Optional[SignService] = None
 
 
 def get_sign_service() -> SignService:

@@ -5,6 +5,7 @@ representations (NumPy arrays) with wrist-centering and scale normalization.
 """
 
 from enum import Enum
+from typing import Union
 
 import numpy as np
 
@@ -239,7 +240,7 @@ def normalize_sequence(
 
 
 def convert_to_model_input(
-    data: SignInput | np.ndarray,
+    data: Union[SignInput, np.ndarray],
     target_frames: int = DEFAULT_FRAMES,
     flatten: bool = False,
     missing_hand_policy: MissingHandPolicy = MissingHandPolicy.ZEROS,
